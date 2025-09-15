@@ -1,0 +1,247 @@
+---
+title: "ProblemSet1"
+author: "Yiming Chen"
+format: pdf
+editor: visual
+---
+
+## Problem 1 - Abalone Data
+
+### a
+
+```{r}
+col_names <- c("Sex", "Length", "Diameter", "Height",
+               "Whole_weight", "Shucked_weight", 
+               "Viscera_weight", "Shell_weight", "Rings")
+
+abalone <- read.csv("C:/Users/cyming/Desktop/STATS 506/Assignment/ProblemSet1/abalone/abalone.data", header = FALSE, col.names = col_names)
+head(abalone)
+```
+
+### b
+
+```{r}
+table(abalone$Sex)
+```
+
+There area 1307 female abalones, 1528 male abalones and 1342 infant abalones.
+
+### c
+
+```{r}
+weights <- abalone[, c("Whole_weight", "Shucked_weight", 
+                       "Viscera_weight", "Shell_weight")]
+
+cor_with_rings <- cor(weights, abalone$Rings)
+cor_with_rings
+```
+
+1.  Shell weight has the highest correlation with rings.
+
+```{r}
+by(abalone, abalone$Sex, function(df) cor(df$Shell_weight, df$Rings))
+```
+
+2.  For this weight, infant has the highest correlation with rings.
+
+```{r}
+max_rings <- max(abalone$Rings)
+subset(abalone, Rings == max_rings)[, c("Whole_weight", "Shucked_weight", "Viscera_weight", "Shell_weight")]
+```
+
+3.  The most rings abalone's whole weight is 1.8075 grams, its shucked weight is 0.7055 grams, viscera weight is 0.3215 grams and its shell weight is 0.475 grams.
+
+```{r}
+mean(abalone$Viscera_weight > abalone$Shell_weight) * 100
+```
+
+4.  6.511851% of abalones have a viscera weight larger than their shell weight.
+
+### d
+
+```{r}
+sexes <- unique(abalone$Sex)
+
+cor_table <- sapply(sexes, function(s) {
+  df <- subset(abalone, Sex == s)
+  cor(df[, c("Whole_weight","Shucked_weight","Viscera_weight","Shell_weight")], df$Rings)
+})
+
+cor_table <- t(cor_table)
+rownames(cor_table) <- sexes
+colnames(cor_table) <- c("Whole_weight","Shucked_weight","Viscera_weight","Shell_weight")
+cor_table
+```
+
+The table of correlation is shown above.
+
+### e
+
+```{r}
+t.test(Rings ~ Sex, data = subset(abalone, Sex %in% c("M","F")))
+t.test(Rings ~ Sex, data = subset(abalone, Sex %in% c("M","I")))
+t.test(Rings ~ Sex, data = subset(abalone, Sex %in% c("F","I")))
+```
+
+The number of rings differs across the three sexes. I did 3 Welch two sample t-test to examine if the mean number of rings differs across the 3 sexes. For the first t-test between F and M, we can see Females have a slightly higher mean number of rings than males, and this difference is statistically significant due to the very small p-value, equals to 0.0002514. Moreover, for the rest tests, we compare F and M with I, and obviously the p-value is close to 0, showing highly significant difference between mean number of rings. That's very reasonable since abalones gain rings gradually when they grow. And the general ordering is like F \> M \> I.
+
+## Problem 2 - Food Expenditure Data
+
+### a
+
+```{r}
+food <- read.csv("C:/Users/cyming/Desktop/STATS 506/Assignment/ProblemSet1/food_expenditure.csv", stringsAsFactors = FALSE)
+```
+
+### b
+
+```{r}
+# install.packages("janitor")
+#ibrary(janitor)
+#food <- clean_names(food)
+colnames(food) <- c(
+  "id",
+  "age",
+  "household_size",
+  "state",
+  "currency",
+  "total_food_exp",
+  "grocery_exp",
+  "dining_out_exp",
+  "misc_food_exp",
+  "dine_out_times",
+  "alcohol",
+  "food_assistance"
+)
+names(food)
+```
+
+The simplified variable names are shown above.
+
+### c
+
+```{r}
+n_before <- nrow(food)
+food_usd <- subset(food, currency == "USD")
+n_after <- nrow(food_usd)
+
+cat("Before filtering:", n_before, "After filtering:", n_after, "\n")
+
+```
+
+### d
+
+```{r}
+food_usd <- subset(food_usd, age >= 18 & age <= 90)
+```
+
+For the age variable, I only kept respondents between 18 and 90 years old.
+
+### e
+
+```{r}
+valid_states <- state.abb  
+food_usd <- subset(food_usd, state %in% valid_states)
+```
+
+For the state variable, I used the built-in state abbreviations in R to compare with these entries, and dropped unmatched rows.
+
+### f
+
+```{r}
+food_usd$total_food_exp <- suppressWarnings(as.numeric(food_usd$total_food_exp))
+food_usd <- subset(food_usd,
+                   !is.na(total_food_exp) & total_food_exp >= 0 &
+                   !is.na(grocery_exp) & grocery_exp >= 0 &
+                   !is.na(dining_out_exp) & dining_out_exp >= 0 &
+                   !is.na(misc_food_exp) & misc_food_exp >= 0)
+```
+
+For the 4 variables related to food expenditures, I found that the total food expenditure was character type, so I converted it into numeric type. Then I removed NA values and only kept non-negative rows.
+
+### g
+
+```{r}
+food_usd <- subset(food_usd,
+                   !is.na(dine_out_times) &
+                   dine_out_times >= 0)
+```
+
+For the variable related to the number of times dining out, I just removed rows with NA values and negative values.
+
+### h
+
+```{r}
+cat("Final number of observations after this cleaning:", nrow(food_usd), "\n")
+```
+
+## Problem 3 - Collatz conjecture
+
+### a
+
+```{r}
+nextCollatz <- function(n) {
+  if (!is.numeric(n) || length(n) != 1 || n <= 0 || n != as.integer(n)) {
+    stop("Input must be a positive integer.")
+  }
+  if (n %% 2 == 0) {
+    return(n / 2)
+  } else {
+    return(3 * n + 1)
+  }
+}
+```
+
+```{r}
+nextCollatz(5)
+```
+
+```{r}
+nextCollatz(16)
+```
+
+### b
+
+```{r}
+collatzSequence <- function(n) {
+  if (!is.numeric(n) || length(n) != 1 || n <= 0 || n != as.integer(n)) {
+    stop("Input must be a positive integer.")
+  }
+  
+  seq <- n
+  while (tail(seq, 1) != 1) {
+    seq <- c(seq, nextCollatz(tail(seq, 1)))
+  }
+  
+  list(sequence = seq, length = length(seq))
+}
+```
+
+```{r}
+collatzSequence(5)
+```
+
+```{r}
+collatzSequence(19)
+```
+
+### c
+
+```{r}
+start_vals <- 100:500
+seq_lengths <- sapply(start_vals, function(x) collatzSequence(x)$length)
+
+shortest_start <- start_vals[which.min(seq_lengths)]
+longest_start  <- start_vals[which.max(seq_lengths)]
+
+shortest_seq <- collatzSequence(shortest_start)
+longest_seq  <- collatzSequence(longest_start)
+```
+
+```{r}
+cat("Shortest sequence starts at", shortest_start, "with length", shortest_seq$length, "\n")
+```
+
+```{r}
+cat("Longest sequence starts at", longest_start, "with length", longest_seq$length, "\n")
+```
