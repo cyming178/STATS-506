@@ -1,0 +1,250 @@
+---
+title: "ProblemSet2"
+author: "Yiming Chen"
+format: pdf
+editor: visual
+---
+
+## Problem 1 - Modified Random walk
+
+### a
+
+```{r}
+random_walk1 <- function(n, seed = NULL) {
+  set.seed(seed)
+  directions <- sample(c(-1, 1), n, replace = TRUE)
+  probs <- runif(n)
+
+  steps <- numeric(n)
+  for (i in 1:n) {
+    if (directions[i] == 1) {
+      steps[i] <- ifelse(probs[i] < 0.05, 10, 1)
+    } else {
+      steps[i] <- ifelse(probs[i] < 0.20, -3, -1)
+    }
+  }
+  sum(steps)
+}
+```
+
+```{r}
+random_walk2 <- function(n, seed = NULL) {
+  set.seed(seed)
+  directions <- sample(c(-1, 1), n, replace = TRUE)
+  probs <- runif(n)
+
+  steps <- ifelse(
+    directions == 1,
+    ifelse(probs < 0.05, 10, 1),
+    ifelse(probs < 0.20, -3, -1)
+  )
+  sum(steps)
+}
+```
+
+```{r}
+random_walk3 <- function(n, seed = NULL) {
+  set.seed(seed)
+  directions <- sample(c(-1, 1), n, replace = TRUE)
+  probs <- runif(n)
+  
+  steps <- sapply(1:n, function(i) {
+    if (directions[i] == 1) {
+      ifelse(probs[i] < 0.05, 10, 1)
+    } else {
+      ifelse(probs[i] < 0.20, -3, -1)
+    }
+  })
+  sum(steps)
+}
+```
+
+```{r}
+random_walk1(10)
+random_walk2(10)
+random_walk3(10)
+random_walk1(1000)
+random_walk2(1000)
+random_walk3(1000)
+```
+
+### b
+
+```{r}
+random_walk1(10, seed = 42)
+random_walk2(10, seed = 42)
+random_walk3(10, seed = 42)
+random_walk1(1000, seed = 42)
+random_walk2(1000, seed = 42)
+random_walk3(1000, seed = 42)
+```
+
+### c
+
+```{r}
+library(microbenchmark)
+n <- 1000
+microbenchmark(
+  loop = random_walk1(n, seed = 42),
+  vectorized = random_walk2(n, seed = 42),
+  applyfun = random_walk3(n, seed = 42),
+  times = 50
+)
+n <- 100000
+microbenchmark(
+  loop = random_walk1(n, seed = 42),
+  vectorized = random_walk2(n, seed = 42),
+  applyfun = random_walk3(n, seed = 42),
+  times = 20
+)
+```
+
+The vectorized implementation (`random_walk2`) consistently outperforms both alternatives, demonstrating the efficiency of R’s vectorized operations. In contrast, the loop-based approach (`random_walk1`) scales poorly but still surpasses the apply-based version. The apply implementation (`random_walk3`) proves to be the slowest for both small and large inputs.
+
+### d
+
+```{r}
+estimate_prob1 <- function(n, trials = 100000) {
+  results <- replicate(trials, random_walk1(n))
+  mean(results == 0)
+}
+estimate_prob2 <- function(n, trials = 100000) {
+  results <- replicate(trials, random_walk2(n))
+  mean(results == 0)
+}
+estimate_prob3 <- function(n, trials = 100000) {
+  results <- replicate(trials, random_walk3(n))
+  mean(results == 0)
+}
+set.seed(42)
+
+prob2_10   <- estimate_prob2(10, trials = 10000)
+prob2_100  <- estimate_prob2(100, trials = 10000)
+prob2_1000 <- estimate_prob2(1000, trials = 10000)
+cat("The probability that the random walk ends at 0 with 10 steps is:", prob2_10, '\n')
+cat("The probability that the random walk ends at 0 with 100 steps is:", prob2_100, '\n')
+cat("The probability that the random walk ends at 0 with 1000 steps is:", prob2_1000)
+```
+
+## Problem 2 - Mean of Mixture of Distributions
+
+```{r}
+estimate_daily_mean <- function(trials = 100000, seed = 42) {
+  set.seed(seed)
+  counts <- rpois(trials, 8) + 2 * rnorm(trials, mean = 60, sd = sqrt(12)) + rpois(trials, 64) + rpois(trials, 72)
+  return(counts)
+}
+
+
+n <- estimate_daily_mean(trials = 200000, seed = 42)
+cat('The estimation of the average number of cars \n that pass an intersection per day under assumptions is:', round(mean(n)))
+```
+
+## Problem 3 - Linear Regression
+
+### a
+
+```{r}
+youtube <- read.csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-03-02/youtube.csv')
+colnames(youtube)
+```
+
+```{r}
+youtube_deid <- youtube[, c("year","funny","show_product_quickly","patriotic",
+                            "celebrity","danger","animals","use_sex",
+                            "view_count","like_count","dislike_count",
+                            "favorite_count","comment_count","category_id")]
+dim(youtube_deid)
+
+```
+
+The dimensions of the data after removing these columns are 247 \* 14 (247 rows \* 14 columns).
+
+### b
+
+```{r}
+hist(youtube_deid$view_count, main="view_count", xlab="")
+hist(youtube_deid$like_count, main="like_count", xlab="")
+hist(youtube_deid$dislike_count, main="dislike_count", xlab="")
+hist(youtube_deid$favorite_count, main="favorite_count", xlab="")
+hist(youtube_deid$comment_count, main="comment_count", xlab="")
+```
+
+For these five variables, favorite_count only has 0 and null values, so it would not be appropriate to use as the outcome in a linear regression model. All the rest variables are right-skewed,so we can carry out the log(1+x) transformation to make it prior to being used as the outcome in a linear regression model. The histograms after transformation are shown below.
+
+```{r}
+hist(log1p(youtube_deid$view_count), main="view_count", xlab="")
+hist(log1p(youtube_deid$like_count), main="like_count", xlab="")
+hist(log1p(youtube_deid$dislike_count), main="dislike_count", xlab="")
+hist(log1p(youtube_deid$comment_count), main="comment_count", xlab="")
+```
+
+### c
+
+```{r}
+Sys.setenv(LANG = "en")
+Sys.setlocale("LC_ALL", "C")
+youtube_deid$log_views <- log1p(youtube$view_count)
+youtube_deid$log_likes <- log1p(youtube$like_count)
+youtube_deid$log_dislikes <- log1p(youtube$dislike_count)
+youtube_deid$log_comments <- log1p(youtube$comment_count)
+model_views <- lm(log_views ~ funny + show_product_quickly + patriotic +
+                    celebrity + danger + animals + use_sex + year,
+                  data = youtube_deid)
+
+model_likes <- lm(log_likes ~ funny + show_product_quickly + patriotic +
+                    celebrity + danger + animals + use_sex + year,
+                  data = youtube_deid)
+
+model_dislikes <- lm(log_dislikes ~ funny + show_product_quickly + patriotic +
+                       celebrity + danger + animals + use_sex + year,
+                     data = youtube_deid)
+
+model_comments <- lm(log_comments ~ funny + show_product_quickly + patriotic +
+                       celebrity + danger + animals + use_sex + year,
+                     data = youtube_deid)
+```
+
+```{r}
+summary(model_views)
+```
+
+For the model of view_count, none of the attributes shows statistically significant with the view counts.
+
+```{r}
+summary(model_likes)
+```
+
+For the model of like_count, only the attribute---'year' shows statistically significant association which is also positive. And the 'danger' attribute tends to have a positive and statistically significant association.
+
+```{r}
+summary(model_dislikes)
+```
+
+For the model of dislike_count, same as like_count, only 'year' shows a positive statistically significant association and the patriotic attribute tends to have a positive statistically significant association with dislike counts.
+
+```{r}
+summary(model_comments)
+```
+
+For comment_count, only 'year' and 'patriotic' show a tendency of positive significant association and other attributes show no statistically significant association.
+
+### d
+
+```{r}
+dat <- na.omit(youtube_deid[, c("log_views","funny","show_product_quickly",
+                                "patriotic","celebrity","danger","animals","use_sex","year")])
+
+y <- dat$log_views
+X <- model.matrix(~ funny + show_product_quickly + patriotic +
+                    celebrity + danger + animals + use_sex + year,
+                  data = dat)
+
+beta_hat <- solve(t(X) %*% X) %*% (t(X) %*% y)
+
+coef(model_views)
+
+beta_hat
+```
+
+The two results are the same.
